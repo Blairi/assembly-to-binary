@@ -1,0 +1,17 @@
+/* Estilos para el botón Convertir */
+input[type="submit"] {
+    background-color: #4CAF50; /* Color de fondo verde */
+    border: none; /* Sin borde */
+    color: white; /* Texto blanco */
+    padding: 10px 20px; /* Espacio alrededor del texto */
+    text-align: center; /* Centrado del texto */
+    text-decoration: none; /* Sin decoraciones */
+    display: inline-block; /* Permite centrarlo horizontalmente */
+    font-size: 16px; /* Tamaño de fuente */
+    margin: 4px 2px; /* Espacio alrededor del botón */
+    cursor: pointer; /* Cambia a cursor de mano al pasar el ratón sobre el botón */
+}
+
+input[type="submit"]:hover {
+    background-color: #45a049; /* Cambia el color de fondo al pasar el ratón sobre el botón */
+}
