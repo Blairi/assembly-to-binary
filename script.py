@@ -1,3 +1,6 @@
+import tkinter as tk
+from tkinter import filedialog
+
 INPUT_FILE = "./asm.asm"
 
 REG_CODES = [
@@ -46,13 +49,6 @@ OP_CODES = [
     "read",
     "write",
     "move",
-    # "jmp",
-    # "je",
-    # "jne",
-    # "ja",
-    # "jae",
-    # "jb",
-    # "jbe",
 ]
 
 JM_CODES = {
@@ -67,10 +63,10 @@ JM_CODES = {
 }
 
 
-def read_file() -> list[str]:
+def read_file(name) -> list[str]:
 
     cont = []
-    with open(INPUT_FILE, "r") as file:
+    with open(name, "r") as file:
         file.seek(0)
         cont = file.readlines()
     
@@ -137,7 +133,8 @@ def op_instruction(instruction:str, line:int) -> str:
 
     return bin
 
-def jm_instruction(instruction:str, line:int) -> str:
+
+def jm_instruction(instruction:str) -> str:
     instruction = instruction.replace("\n", "")
 
     # split instruction by " "
@@ -148,20 +145,46 @@ def jm_instruction(instruction:str, line:int) -> str:
 
     # 
     if len(entities) > 2:
+
         bin += " "
-        bin += entities[1].replace("," ,"")
-        
+        label = entities[1].replace("," ,"")
+        bin += binary_converter(LABELS[label], 8)
+
         bin += " "
         reg = REG_CODES.index(entities[2])
         bin += binary_converter(reg, 8)
     
+    else:
+        bin += " "
+        label = entities[1]
+        bin += binary_converter(LABELS[label], 8)
+    
     return bin
         
 
+def search_labels(file) -> None:
+    lines = read_file(file)
 
-def main() -> None:
+    i = 1
+    for line in lines:
 
-    lines = read_file()
+        entity = line.split(" ")[0]
+        entity = entity.replace("\n", "")
+
+        if entity[-1] == ":":
+            # print(f"{i}: {entity}")
+            LABELS[entity[:-1]] = i
+        
+        i+=1
+
+
+def conversor(file) -> list[str]:
+    
+    ans = []
+
+    search_labels(file)
+
+    lines = read_file(file)
 
     out = ""
 
@@ -182,7 +205,7 @@ def main() -> None:
             out += ins
         
         elif entity in JM_CODES:
-            ins = jm_instruction(line, i)
+            ins = jm_instruction(line)
             # print(f"{i}: {ins}")
             out += ins
 
@@ -190,12 +213,54 @@ def main() -> None:
 
         ins = ins.replace(" ", "")
         padding = ""
-        if len(ins) < 24:
+        if len(ins) < 24 and not entity[-1] == ":":
             for _ in range(0, 24 - len(ins) ):
                 padding += "0"
+
             padding += ins
+            ans.append(padding)
+
+    return ans
+
+
+win = tk.Tk()
+txt_orig = tk.Text(win, wrap=tk.WORD, width=40, height=10)
+txt_out = tk.Text(win, wrap=tk.WORD, width=40, height=10)
+def open_file():
+    INPUT_FILE = filedialog.askopenfilename()
+    if INPUT_FILE:
+        cont = read_file(INPUT_FILE)
+        for line in cont:
+            txt_orig.insert(tk.END, line)
+
+
+def conv_file():
+    out = conversor(INPUT_FILE)
+    for line in out:
+        txt_out.insert(tk.END, "\n")
+        txt_out.insert(tk.END, line)
+
+
+def window() -> None:
     
-        print(padding)
+    win.title("Assembly to binary")
+
+    btn_open = tk.Button(win, text="open file", command=open_file)
+    btn_open.pack(pady=10)
+
+    txt_orig.pack(side=tk.LEFT, padx=10, pady=10)
+    
+    btn_conv = tk.Button(win, text="convert file", command=conv_file)
+    btn_conv.pack(pady=10)
+
+    txt_out.pack(side=tk.RIGHT, padx=10, pady=10)
+
+    win.mainloop()
+
+
+def main() -> None:
+    
+    window()
 
         
 
