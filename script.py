@@ -1,8 +1,11 @@
 import tkinter as tk
 from tkinter import filedialog
 
+# variable para guardar la ubicación del archivo
 INPUT_FILE = "./asm.asm"
 
+# lista con los nombres de los registros
+# en orden
 REG_CODES = [
     "areg",
     "breg",
@@ -16,8 +19,12 @@ REG_CODES = [
     "jreg",
 ]
 
+# diccionario para guardar la linea donde
+# se encuentra la etiqueta
 LABELS = {}
 
+# diccionario para guardar la ultima linea 
+# donde se uso el registro
 DIR_REG = {
     "areg": -1,
     "breg": -1,
@@ -31,6 +38,7 @@ DIR_REG = {
     "jreg": -1,
 }
 
+# lista con las operaciones en orden
 OP_CODES = [
     "add",
     "sub",
@@ -51,6 +59,9 @@ OP_CODES = [
     "move",
 ]
 
+# diccionario con las operaciones 
+# de salto de linea con la conversion
+# a binario
 JM_CODES = {
     "jmp": "10001",
     "je": "10010",
@@ -65,11 +76,14 @@ JM_CODES = {
 
 def read_file(name) -> list[str]:
 
+    # recuperar todo el contenido del archivo
     cont = []
     with open(name, "r") as file:
         file.seek(0)
         cont = file.readlines()
     
+    # guardar todas las lineas en una lista
+    # quitando los saltos de linea
     lines = []
     for line in cont:
         if not line == "\n":
@@ -79,83 +93,133 @@ def read_file(name) -> list[str]:
     
 
 def binary_converter(n:int, bits:int):
+    # string para guardar el binario
     binary_representation = ""
+
+    # copiar el numero entero a un aux
     aux = n
+
+    # dividimos el numero entre 2
+    # y concatenamos el residuo de / 2
+    # mientras sea mayor a 0
     while aux > 0:
         binary_representation += str(aux % 2)
         aux //= 2
     
+    # rellenar con 0s el string en caso
+    # de que en la conversion se necesiten
+    # mas bits
     if len(binary_representation) < bits:
         for _ in range(0, bits - len(binary_representation)):
             binary_representation += "0"
 
+    # retornamos la cadena en binario
+    # volteada
     return binary_representation[::-1]
 
 
 def op_instruction(instruction:str, line:int) -> str:
+
+    # limpiar instrucción
     instruction = instruction.replace("\n", "")
 
-    # split instruction by " "
+    # separando por espacios la instruccion
     entities = instruction.split(" ")
 
-    # search index of operation
+    # buscar el indice de la operacion
     op = OP_CODES.index(entities[0])
 
-    # convert operation index in binary (5 bits)
+    # convertir el indice de la operacion a
+    # binario de 5 bits
     bin = binary_converter(op, 5)
 
-    # iterate rest of entities in the instruction
+    # iteramos el resto de registros u operaciones
+    # quitando la primer operacion
     for entity in entities[1:]:
+
+        # quitando las comas
         entity = entity.replace(",", "")
 
+        # si lo que esta despues de la operacion...
+
+        # es un registro
         if entity in REG_CODES:
-            # save last line where the register was used
+            # guardamos la ultima linea donde se uso
+            # el archivo
             DIR_REG[entity] = line
 
+            # buscamos el indice del registro
+            # para despues convertirlo a binario
             reg = REG_CODES.index(entity)
             bin += " "
             bin += binary_converter(reg, 4)
 
+        # es una operacion de lectura/escritura
+        # con un registro
         elif "[" in entity:
+
+            # limpiando el registro
             entity = entity.replace("[", "")
             entity = entity.replace("]", "")
 
-            # save last line where the register was used
+            # guardamos la ultima linea donde 
+            # el registro se uso
             DIR_REG[entity] = line
 
+            # recuperamos la ultima linea donde se uso
+            # el registro para convertirla a binario
             dir = binary_converter(DIR_REG[entity], 4)
             bin += " "
             bin += dir
         
+        # es una asignacion con valor inmediato
         elif entity[0] == "#":
             bin += " "
+            # convertimos a binario quitandole 
+            # el simbolo "gato"
             bin += binary_converter(int(entity[1:]), 8)
 
+    # retornamos la instruccion convertida a binario
     return bin
 
 
 def jm_instruction(instruction:str) -> str:
+    # limpiamos la instruccion
     instruction = instruction.replace("\n", "")
 
-    # split instruction by " "
+    # separamos por espacios
     entities = instruction.split(" ")
 
-    # convert the jump operation index in binary (5 bits)
+    # recuperamos el binario de la operacion
+    # de salto del diccionario
     bin = JM_CODES[entities[0]]
 
-    # 
+    # si la instruccion tiene mas de 2
+    # "entidades", ej: jbe 10111, hreg
     if len(entities) > 2:
 
         bin += " "
+        # quitando comas
         label = entities[1].replace("," ,"")
+
+        # recuperamos la linea donde se encuentra
+        # declarada la etiqueta y la convertimos
+        # a binario
         bin += binary_converter(LABELS[label], 8)
 
         bin += " "
+
+        # recuperamos el indice del registro que
+        # se usa para convertirlo a binario
         reg = REG_CODES.index(entities[2])
         bin += binary_converter(reg, 8)
-    
+
+    # si la instruccion tiene solo 2
+    # "entidades", ej: jbe 10111
     else:
         bin += " "
+        # solo recuperamos la linea de la etiqueta
+        # para convertirla a binario
         label = entities[1]
         bin += binary_converter(LABELS[label], 8)
     
@@ -165,59 +229,100 @@ def jm_instruction(instruction:str) -> str:
 def search_labels(file) -> None:
     lines = read_file(file)
 
+    # indice de la linea
     i = 1
+
+    # recorremos cada linea buscando una 
+    # etiqueta
     for line in lines:
 
         entity = line.split(" ")[0]
         entity = entity.replace("\n", "")
 
+        # si ej -> etiq:
         if entity[-1] == ":":
             # print(f"{i}: {entity}")
+
+            # guardamos la linea en donde
+            # esta la etiqueta
             LABELS[entity[:-1]] = i
         
+        # aumentamos el numero de linea
         i+=1
 
 
 def conversor(file) -> list[str]:
     
+    # declaramos una lista que es donde se van
+    # a guardar todas las instrucciones en binario
     ans = []
 
+    # buscamos las etiquetas
     search_labels(file)
 
+    # leemos de nuevo el archivo
     lines = read_file(file)
 
+    # string para guardar el binario
     out = ""
 
+    # indice de la linea actual
     i = 1
+
+    # leemos cada linea del archivo
     for line in lines:
 
+        # separamos la instruccion por espacios
+        # para recuperar la primer "entidad"
         entity = line.split(" ")[0]
 
+        # quitando saltos de linea
         entity = entity.replace("\n", "")
     
         # print(entity)
 
-        # operation instruction
+        # string para guardar la 
+        # instruccion
         ins = ""
+
+        # si la operacion no es una de
+        # salto de linea
         if entity in OP_CODES:
+
+            # convertimos la operacion a binario
+            # y la concatenamos
             ins = op_instruction(line, i)
             # print(f"{i}: {ins}")
             out += ins
         
+        # si la operacion es de salto de linea
         elif entity in JM_CODES:
+            # convertimos a binario y concatenamos
             ins = jm_instruction(line)
             # print(f"{i}: {ins}")
             out += ins
 
+        # vamos aumentando el indice de la linea actual
         i += 1
 
+        # quitamos espacios en blanco
         ins = ins.replace(" ", "")
+
+        # declaramos un string auxiliar para
+        # rellenarlo con 0
         padding = ""
+
+        # rellenamos con n 0s si la instruccion 
+        # aún no es de 24 bits
         if len(ins) < 24 and not entity[-1] == ":":
             for _ in range(0, 24 - len(ins) ):
                 padding += "0"
 
+            # contatenamos a los 0s nuestra instruccion
             padding += ins
+
+            # guardamos la isntruccion completa
+            # en la lista a retornar
             ans.append(padding)
 
     return ans
